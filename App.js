@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Button, StyleSheet, Text, TextInput, View } from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
+import { Button, StyleSheet, Text, TextInput, View, Appearance } from 'react-native';
+import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { createDrawerNavigator } from '@react-navigation/drawer';
 import Ionicons from '@expo/vector-icons/Ionicons';
+
+const ThemeContext = React.createContext();
 
 function StopwatchScreen() {
     const [time, setTime] = useState(0);
@@ -29,10 +32,14 @@ function StopwatchScreen() {
     };
 
     return (
-        <View style={styles.container}>
-            <Text style={styles.time}>{formatTime(time)}</Text>
-            <Button title={running ? "Stop" : "Start"} onPress={() => setRunning(!running)} />
-        </View>
+        <ThemeContext.Consumer>
+            {({ theme }) => (
+                <View style={[styles.container, theme === 'dark' && styles.darkContainer]}>
+                    <Text style={[styles.time, theme === 'dark' && styles.darkText]}>{formatTime(time)}</Text>
+                    <Button title={running ? "Stop" : "Start"} onPress={() => setRunning(!running)} />
+                </View>
+            )}
+        </ThemeContext.Consumer>
     );
 }
 
@@ -73,56 +80,88 @@ function TimerScreen() {
     };
 
     return (
-        <View style={[styles.container, finished && styles.finished]}>
-            <TextInput
-                style={styles.input}
-                keyboardType="numeric"
-                value={hours}
-                onChangeText={setHours}
-                placeholder="Hours"
-            />
-            <TextInput
-                style={styles.input}
-                keyboardType="numeric"
-                value={minutes}
-                onChangeText={setMinutes}
-                placeholder="Minutes"
-            />
-            <TextInput
-                style={styles.input}
-                keyboardType="numeric"
-                value={seconds}
-                onChangeText={setSeconds}
-                placeholder="Seconds"
-            />
-            <Button title="Start Timer" onPress={startTimer} />
-            <Text style={styles.time}>{formatTime(time)}</Text>
+        <ThemeContext.Consumer>
+            {({ theme }) => (
+                <View style={[styles.container, finished && styles.finished, theme === 'dark' && styles.darkContainer]}>
+                    <TextInput
+                        style={[styles.input, theme === 'dark' && styles.darkInput]}
+                        keyboardType="numeric"
+                        value={hours}
+                        onChangeText={setHours}
+                        placeholder="Hours"
+                        placeholderTextColor={theme === 'dark' ? '#aaa' : '#000'}
+                    />
+                    <TextInput
+                        style={[styles.input, theme === 'dark' && styles.darkInput]}
+                        keyboardType="numeric"
+                        value={minutes}
+                        onChangeText={setMinutes}
+                        placeholder="Minutes"
+                        placeholderTextColor={theme === 'dark' ? '#aaa' : '#000'}
+                    />
+                    <TextInput
+                        style={[styles.input, theme === 'dark' && styles.darkInput]}
+                        keyboardType="numeric"
+                        value={seconds}
+                        onChangeText={setSeconds}
+                        placeholder="Seconds"
+                        placeholderTextColor={theme === 'dark' ? '#aaa' : '#000'}
+                    />
+                    <Button title="Start Timer" onPress={startTimer} />
+                    <Text style={[styles.time, theme === 'dark' && styles.darkText]}>{formatTime(time)}</Text>
+                </View>
+            )}
+        </ThemeContext.Consumer>
+    );
+}
+
+function SettingsScreen({ setTheme }) {
+    return (
+        <View style={styles.container}>
+            <Button title="Light Theme" onPress={() => setTheme('light')} />
+            <Button title="Dark Theme" onPress={() => setTheme('dark')} />
         </View>
     );
 }
 
 const Tab = createBottomTabNavigator();
+const Drawer = createDrawerNavigator();
+
+function MainTabs() {
+    return (
+        <Tab.Navigator
+            screenOptions={({ route }) => ({
+                tabBarIcon: ({ color, size }) => {
+                    let iconName;
+                    if (route.name === 'Stopwatch') {
+                        iconName = 'timer-outline';
+                    } else if (route.name === 'Timer') {
+                        iconName = 'time-outline';
+                    }
+                    return <Ionicons name={iconName} size={size} color={color} />;
+                },
+            })}
+        >
+            <Tab.Screen name="Stopwatch" component={StopwatchScreen} />
+            <Tab.Screen name="Timer" component={TimerScreen} />
+        </Tab.Navigator>
+    );
+}
 
 export default function App() {
+    const [theme, setTheme] = useState(Appearance.getColorScheme() || 'light'); // використовується задля отримання поточної теми пристрою
+
     return (
-        <NavigationContainer>
-            <Tab.Navigator
-                screenOptions={({ route }) => ({
-                    tabBarIcon: ({ color, size }) => {
-                        let iconName;
-                        if (route.name === 'Stopwatch') {
-                            iconName = 'timer-outline';
-                        } else if (route.name === 'Timer') {
-                            iconName = 'time-outline';
-                        }
-                        return <Ionicons name={iconName} size={size} color={color} />;
-                    },
-                })}
-            >
-                <Tab.Screen name="Stopwatch" component={StopwatchScreen} />
-                <Tab.Screen name="Timer" component={TimerScreen} />
-            </Tab.Navigator>
-        </NavigationContainer>
+        <ThemeContext.Provider value={{ theme, setTheme }}>
+            <NavigationContainer theme={theme === 'dark' ? DarkTheme : DefaultTheme}>
+                <Drawer.Navigator>
+                    <Drawer.Screen name="Main" component={MainTabs} />
+                    <Drawer.Screen name="Settings">
+                        {() => <SettingsScreen setTheme={setTheme} />}
+                    </Drawer.Screen>
+                </Drawer.Navigator>
+            </NavigationContainer>
+        </ThemeContext.Provider>
     );
 }
 
@@ -146,5 +185,15 @@ const styles = StyleSheet.create({
     },
     finished: {
         backgroundColor: 'red',
+    },
+    darkContainer: {
+        backgroundColor: '#121212',
+    },
+    darkText: {
+        color: '#fff',
+    },
+    darkInput: {
+        borderColor: '#555',
+        color: '#fff',
     },
 });
